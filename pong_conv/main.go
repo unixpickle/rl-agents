@@ -29,7 +29,8 @@ const (
 )
 
 const (
-	RenderEnv = false
+	RenderEnv  = false
+	PrintNorms = true
 
 	NetworkSaveFile = "trained_policy"
 )
@@ -125,8 +126,10 @@ func main() {
 			log.Println("Training on batch...")
 			grad := trpo.Run(r)
 			trainLock.Lock()
-			for i, param := range anynet.AllParameters(policy) {
-				log.Println("param", i, "mag", anyvec.Norm(grad[param]))
+			if PrintNorms {
+				for i, param := range anynet.AllParameters(policy) {
+					log.Println("param", i, "mag", anyvec.Norm(grad[param]))
+				}
 			}
 			grad.AddToVars()
 			trainLock.Unlock()
@@ -152,16 +155,7 @@ func loadOrCreateNetwork(creator anyvec.Creator) anyrnn.Stack {
 		markup := `
 			Input(w=80, h=105, d=3)
 
-			Linear(scale=0.003921568627, bias=-0.5647058824)
-			#Residual {
-			#	Projection {
-			#		Linear(scale=-1)
-			#		ReLU
-			#	}
-			#	ReLU
-			#}
-
-			Linear(scale=24)
+			Linear(scale=0.01)
 
 			Conv(w=4, h=4, n=16, sx=2, sy=2)
 			ReLU
@@ -169,10 +163,6 @@ func loadOrCreateNetwork(creator anyvec.Creator) anyrnn.Stack {
 			ReLU
 			FC(out=256)
 			ReLU
-			#Conv(w=4, h=4, n=16, sx=2, sy=2)
-			#ReLU
-			#FC(out=128)
-			#ReLU
 		`
 		convNet, err := anyconv.FromMarkup(creator, markup)
 		must(err)
@@ -190,7 +180,7 @@ func loadOrCreateNetwork(creator anyvec.Creator) anyrnn.Stack {
 
 func setupVisionLayers(net anynet.Net) anynet.Net {
 	for _, layer := range net {
-		//projectOutSolidColors(layer)
+		projectOutSolidColors(layer)
 		boostBiases(layer)
 	}
 	return net
