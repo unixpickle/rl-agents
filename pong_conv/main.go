@@ -153,7 +153,7 @@ func loadOrCreateNetwork(creator anyvec.Creator) anyrnn.Stack {
 	} else {
 		log.Println("Created new network.")
 		markup := `
-			Input(w=80, h=105, d=3)
+			Input(w=80, h=105, d=6)
 
 			Linear(scale=0.01)
 
@@ -169,6 +169,7 @@ func loadOrCreateNetwork(creator anyvec.Creator) anyrnn.Stack {
 		net := convNet.(anynet.Net)
 		net = setupVisionLayers(net)
 		return anyrnn.Stack{
+			NewStacker(creator, 1, PreprocessedSize),
 			&anyrnn.LayerBlock{Layer: net},
 			anymisc.NewNPRNN(creator, 256, 256),
 			&anyrnn.LayerBlock{
