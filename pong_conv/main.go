@@ -9,7 +9,6 @@ import (
 	"github.com/unixpickle/anydiff/anyseq"
 	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anynet/anyconv"
-	"github.com/unixpickle/anynet/anymisc"
 	"github.com/unixpickle/anynet/anyrnn"
 	"github.com/unixpickle/anyrl"
 	"github.com/unixpickle/anyrl/anypg"
@@ -153,16 +152,16 @@ func loadOrCreateNetwork(creator anyvec.Creator) anyrnn.Stack {
 	} else {
 		log.Println("Created new network.")
 		markup := `
-			Input(w=80, h=105, d=6)
+			Input(w=80, h=105, d=2)
 
 			Linear(scale=0.01)
 
 			Conv(w=4, h=4, n=16, sx=2, sy=2)
-			ReLU
+			Tanh
 			Conv(w=4, h=4, n=32, sx=2, sy=2)
-			ReLU
-			FC(out=256)
-			ReLU
+			Tanh
+			FC(out=128)
+			Tanh
 		`
 		convNet, err := anyconv.FromMarkup(creator, markup)
 		must(err)
@@ -171,9 +170,9 @@ func loadOrCreateNetwork(creator anyvec.Creator) anyrnn.Stack {
 		return anyrnn.Stack{
 			NewStacker(creator, 1, PreprocessedSize),
 			&anyrnn.LayerBlock{Layer: net},
-			anymisc.NewNPRNN(creator, 256, 256),
+			anyrnn.NewVanilla(creator, 128, 128, anynet.Tanh),
 			&anyrnn.LayerBlock{
-				Layer: anynet.NewFCZero(creator, 256, 6),
+				Layer: anynet.NewFCZero(creator, 128, 6),
 			},
 		}
 	}
@@ -182,7 +181,7 @@ func loadOrCreateNetwork(creator anyvec.Creator) anyrnn.Stack {
 func setupVisionLayers(net anynet.Net) anynet.Net {
 	for _, layer := range net {
 		projectOutSolidColors(layer)
-		boostBiases(layer)
+		//boostBiases(layer)
 	}
 	return net
 }
@@ -218,6 +217,17 @@ func boostBiases(layer anynet.Layer) {
 		bias := layer.Biases.Vector.Creator().MakeNumeric(1)
 		layer.Biases.Vector.AddScalar(bias)
 	}
+}
+
+func setupVanilla(v *anyrnn.Vanilla) *anyrnn.Vanilla {
+	projectOutSolidColors(&anynet.FC{
+		InCount:  v.InCount,
+		OutCount: v.OutCount,
+		Weights:  v.InputWeights,
+	})
+	// See if recurrent connections are the problem.
+	v.StateWeights.Vector.Scale(float32(0))
+	return v
 }
 
 func must(err error) {

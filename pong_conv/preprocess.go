@@ -9,7 +9,7 @@ const (
 	FrameWidth  = 160
 	FrameHeight = 210
 
-	PreprocessedSize = 80 * 105 * 3
+	PreprocessedSize = 80 * 105
 )
 
 type PreprocessEnv struct {
@@ -49,14 +49,13 @@ func preprocessImage(sampler anyvec.Mapper, image anyvec.Vector) anyvec.Vector {
 }
 
 func makeInputSubsampler(cr anyvec.Creator) anyvec.Mapper {
-	// Scale down the image by factor of 2 on both axes.
+	// Scale down the image by factor of 2 on both axes
+	// and select the red channel only.
 	mapping := make([]int, 0, PreprocessedSize)
 	for y := 0; y < FrameHeight; y += 2 {
 		for x := 0; x < FrameWidth; x += 2 {
 			sourceIdx := y*FrameWidth*3 + x*3
-			for d := 0; d < 3; d++ {
-				mapping = append(mapping, sourceIdx+d)
-			}
+			mapping = append(mapping, sourceIdx)
 		}
 	}
 	return cr.MakeMapper(FrameWidth*FrameHeight*3, mapping)
