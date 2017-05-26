@@ -34,14 +34,19 @@ type PreprocessEnv struct {
 }
 
 func (p *PreprocessEnv) Reset() (observation anyvec.Vector, err error) {
-	rawObs, err := p.Env.Reset()
-	if err == nil {
-		var buffer []uint8
-		buffer, _, _, err = muniverse.RGB(rawObs)
-		if err == nil {
-			observation = p.simplifyImage(buffer)
-		}
+	err = p.Env.Reset()
+	if err != nil {
+		return
 	}
+	rawObs, err := p.Env.Observe()
+	if err != nil {
+		return
+	}
+	buffer, _, _, err := muniverse.RGB(rawObs)
+	if err != nil {
+		return
+	}
+	observation = p.simplifyImage(buffer)
 	p.Timestep = 0
 	return
 }
@@ -102,14 +107,21 @@ func (p *PreprocessEnv) Step(action anyvec.Vector) (observation anyvec.Vector,
 
 	p.LastX, p.LastY = x, y
 
-	rawObs, reward, done, err := p.Env.Step(p.Rate, events...)
-	if err == nil {
-		var buffer []uint8
-		buffer, _, _, err = muniverse.RGB(rawObs)
-		if err == nil {
-			observation = p.simplifyImage(buffer)
-		}
+	reward, done, err = p.Env.Step(p.Rate, events...)
+	if err != nil {
+		return
 	}
+
+	rawObs, err := p.Env.Observe()
+	if err != nil {
+		return
+	}
+	buffer, _, _, err := muniverse.RGB(rawObs)
+	if err != nil {
+		return
+	}
+	observation = p.simplifyImage(buffer)
+
 	p.Timestep++
 	if p.Timestep > MaxTimestep {
 		done = true
