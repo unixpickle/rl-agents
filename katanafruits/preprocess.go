@@ -22,9 +22,6 @@ type PreprocessEnv struct {
 	Env     *muniverse.Env
 	Creator anyvec.Creator
 
-	// Milliseconds per step.
-	Rate int
-
 	Timestep int
 
 	// Number of timesteps for which mouse has been pressed.
@@ -53,63 +50,67 @@ func (p *PreprocessEnv) Reset() (observation anyvec.Vector, err error) {
 
 func (p *PreprocessEnv) Step(action anyvec.Vector) (observation anyvec.Vector,
 	reward float64, done bool, err error) {
-	floatData := action.Data().([]float32)
-	x := clipMouse(float64(floatData[0]), FrameWidth)
-	y := clipMouse(float64(floatData[1]), FrameHeight)
-	clicked := floatData[2] > 0.5
+	for i := 0; i < SubstepsPerStep && !done; i++ {
+		floatData := action.Data().([]float32)[i*3 : (i+1)*3]
+		x := clipMouse(float64(floatData[0]), FrameWidth)
+		y := clipMouse(float64(floatData[1]), FrameHeight)
+		clicked := floatData[2] > 0.5
 
-	var events []interface{}
+		var events []interface{}
 
-	if p.PressedTimesteps == 0 && clicked {
-		events = append(events, &chrome.MouseEvent{
-			Type:       chrome.MousePressed,
-			X:          x,
-			Y:          y,
-			Button:     chrome.LeftButton,
-			ClickCount: 1,
-		})
-	} else if p.PressedTimesteps == 1 && !clicked {
-		events = append(events, &chrome.MouseEvent{
-			Type:       chrome.MouseReleased,
-			X:          p.LastX,
-			Y:          p.LastY,
-			Button:     chrome.LeftButton,
-			ClickCount: 1,
-		}, &chrome.MouseEvent{
-			Type: chrome.MouseMoved,
-			X:    x,
-			Y:    y,
-		})
-	} else if p.PressedTimesteps > 1 && !clicked {
-		events = append(events, &chrome.MouseEvent{
-			Type:   chrome.MouseReleased,
-			X:      x,
-			Y:      y,
-			Button: chrome.LeftButton,
-		})
-	} else {
-		evt := &chrome.MouseEvent{
-			Type: chrome.MouseMoved,
-			X:    x,
-			Y:    y,
+		if p.PressedTimesteps == 0 && clicked {
+			events = append(events, &chrome.MouseEvent{
+				Type:       chrome.MousePressed,
+				X:          x,
+				Y:          y,
+				Button:     chrome.LeftButton,
+				ClickCount: 1,
+			})
+		} else if p.PressedTimesteps == 1 && !clicked {
+			events = append(events, &chrome.MouseEvent{
+				Type:       chrome.MouseReleased,
+				X:          p.LastX,
+				Y:          p.LastY,
+				Button:     chrome.LeftButton,
+				ClickCount: 1,
+			}, &chrome.MouseEvent{
+				Type: chrome.MouseMoved,
+				X:    x,
+				Y:    y,
+			})
+		} else if p.PressedTimesteps > 1 && !clicked {
+			events = append(events, &chrome.MouseEvent{
+				Type:   chrome.MouseReleased,
+				X:      x,
+				Y:      y,
+				Button: chrome.LeftButton,
+			})
+		} else {
+			evt := &chrome.MouseEvent{
+				Type: chrome.MouseMoved,
+				X:    x,
+				Y:    y,
+			}
+			if clicked {
+				evt.Button = chrome.LeftButton
+			}
+			events = append(events, evt)
 		}
+
 		if clicked {
-			evt.Button = chrome.LeftButton
+			p.PressedTimesteps++
+		} else {
+			p.PressedTimesteps = 0
 		}
-		events = append(events, evt)
-	}
 
-	if clicked {
-		p.PressedTimesteps++
-	} else {
-		p.PressedTimesteps = 0
-	}
+		p.LastX, p.LastY = x, y
 
-	p.LastX, p.LastY = x, y
-
-	reward, done, err = p.Env.Step(p.Rate, events...)
-	if err != nil {
-		return
+		var subReward float64
+		subReward, done, err = p.Env.Step(MillisPerSubstep, events...)
+		if err != nil {
+			return
+		}
+		reward += subReward
 	}
 
 	rawObs, err := p.Env.Observe()

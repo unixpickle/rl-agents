@@ -22,9 +22,11 @@ import (
 )
 
 const (
-	ParallelEnvs  = 3
-	BatchSize     = 24
-	MillisPerStep = 1000 / 10
+	ParallelEnvs = 3
+	BatchSize    = 24
+
+	MillisPerSubstep = 1000 / 30
+	SubstepsPerStep  = 3
 )
 
 const (
@@ -37,13 +39,12 @@ func main() {
 
 	// Create a neural network policy.
 	policy := loadOrCreateNetwork(creator)
-	actionSpace := &anyrl.Tuple{
-		Spaces: []interface{}{
-			anyrl.Gaussian{},
-			&anyrl.Bernoulli{},
-		},
-		ParamSizes:  []int{4, 1},
-		SampleSizes: []int{2, 1},
+	actionSpace := &anyrl.Tuple{}
+	for i := 0; i < SubstepsPerStep; i++ {
+		actionSpace.Spaces = append(actionSpace.Spaces, anyrl.Gaussian{},
+			&anyrl.Bernoulli{})
+		actionSpace.ParamSizes = append(actionSpace.ParamSizes, 4, 1)
+		actionSpace.SampleSizes = append(actionSpace.SampleSizes, 2, 1)
 	}
 
 	// Setup an RNNRoller for producing rollouts.
@@ -143,7 +144,6 @@ func gatherRollouts(roller *anyrl.RNNRoller) []*anyrl.RolloutSet {
 			preproc := &PreprocessEnv{
 				Env:     env,
 				Creator: anynet.AllParameters(roller.Block)[0].Vector.Creator(),
-				Rate:    MillisPerStep,
 			}
 			for _ = range requests {
 				rollout, err := roller.Rollout(preproc)
@@ -194,7 +194,8 @@ func loadOrCreateNetwork(creator anyvec.Creator) anyrnn.Stack {
 			anyrnn.NewMarkov(creator, 1, PreprocessedSize, true),
 			&anyrnn.LayerBlock{Layer: net},
 			&anyrnn.LayerBlock{
-				Layer: biasLastLayer(anynet.NewFCZero(creator, 256, 5)),
+				Layer: biasLastLayer(anynet.NewFCZero(creator, 256,
+					5*SubstepsPerStep)),
 			},
 		}
 	}
