@@ -77,7 +77,7 @@ func main() {
 			}).Reduce,
 
 			ApplyPolicy: func(seq lazyseq.Rereader, b anyrnn.Block) lazyseq.Rereader {
-				out := lazyrnn.FixedHSM(30, false, seq, b)
+				out := lazyrnn.FixedHSM(30, true, seq, b)
 				return lazyseq.Lazify(lazyseq.Unlazify(out))
 			},
 			ActionJudger: &anypg.QJudger{Discount: 0.99},
