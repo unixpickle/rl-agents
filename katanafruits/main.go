@@ -80,7 +80,7 @@ func main() {
 				out := lazyrnn.FixedHSM(30, true, seq, b)
 				return lazyseq.Lazify(lazyseq.Unlazify(out))
 			},
-			ActionJudger: &anypg.QJudger{Discount: 0.99},
+			ActionJudger: &anypg.QJudger{Discount: 0.9},
 		},
 	}
 
