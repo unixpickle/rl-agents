@@ -241,9 +241,9 @@ func projectOutSolidColors(layer anynet.Layer) {
 
 func biasLastLayer(layer *anynet.FC) *anynet.FC {
 	// Bias towards pressing down the mouse (i.e. dragging).
-	idx := layer.Biases.Vector.Len() - 1
 	c := layer.Biases.Vector.Creator()
-	layer.Biases.Vector.Slice(idx, idx+1).AddScalar(c.MakeNumeric(1))
+	bias := c.MakeVectorData(c.MakeNumericList([]float64{0, 0, 0, 0, 1}))
+	anyvec.AddRepeated(layer.Biases.Vector, bias)
 	return layer
 }
 
