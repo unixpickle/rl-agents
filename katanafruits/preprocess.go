@@ -106,7 +106,7 @@ func (p *PreprocessEnv) Step(action anyvec.Vector) (observation anyvec.Vector,
 		p.LastX, p.LastY = x, y
 
 		var subReward float64
-		subReward, done, err = p.Env.Step(MillisPerSubstep, events...)
+		subReward, done, err = p.Env.Step(TimePerSubstep, events...)
 		if err != nil {
 			return
 		}

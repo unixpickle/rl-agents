@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"sync"
+	"time"
 
 	"github.com/unixpickle/anydiff/anyseq"
 	"github.com/unixpickle/anynet"
@@ -25,8 +26,8 @@ const (
 	ParallelEnvs = 3
 	BatchSize    = 24
 
-	MillisPerSubstep = 1000 / 30
-	SubstepsPerStep  = 3
+	TimePerSubstep  = time.Second / 30
+	SubstepsPerStep = 3
 )
 
 const (
