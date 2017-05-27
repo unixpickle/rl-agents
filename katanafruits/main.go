@@ -25,6 +25,7 @@ import (
 const (
 	ParallelEnvs = 3
 	BatchSize    = 24
+	LogInterval  = 8
 
 	TimePerSubstep  = time.Second / 30
 	SubstepsPerStep = 3
@@ -128,7 +129,7 @@ func gatherRollouts(roller *anyrl.RNNRoller) []*anyrl.RolloutSet {
 	var wg sync.WaitGroup
 	for i := 0; i < ParallelEnvs; i++ {
 		wg.Add(1)
-		go func(workerID int) {
+		go func() {
 			defer wg.Done()
 			spec := muniverse.SpecForName("KatanaFruits-v0")
 			if spec == nil {
@@ -149,11 +150,9 @@ func gatherRollouts(roller *anyrl.RNNRoller) []*anyrl.RolloutSet {
 			for _ = range requests {
 				rollout, err := roller.Rollout(preproc)
 				must(err)
-				log.Printf("rollout (worker %d): sub_reward=%f", workerID,
-					rollout.Rewards.Mean())
 				resChan <- rollout
 			}
-		}(i)
+		}()
 	}
 
 	go func() {
@@ -162,8 +161,17 @@ func gatherRollouts(roller *anyrl.RNNRoller) []*anyrl.RolloutSet {
 	}()
 
 	var res []*anyrl.RolloutSet
+	var batchRewardSum float64
+	var numBatchReward int
 	for item := range resChan {
 		res = append(res, item)
+		numBatchReward++
+		batchRewardSum += item.Rewards.Mean()
+		if numBatchReward == LogInterval || len(res) == BatchSize {
+			log.Printf("sub_mean=%f", batchRewardSum/float64(numBatchReward))
+			numBatchReward = 0
+			batchRewardSum = 0
+		}
 	}
 	return res
 }
