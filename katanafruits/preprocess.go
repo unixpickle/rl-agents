@@ -19,7 +19,7 @@ const (
 )
 
 type PreprocessEnv struct {
-	Env     *muniverse.Env
+	Env     muniverse.Env
 	Creator anyvec.Creator
 
 	Timestep int
