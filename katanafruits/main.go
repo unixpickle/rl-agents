@@ -23,9 +23,9 @@ import (
 )
 
 const (
-	ParallelEnvs = 3
-	BatchSize    = 24
-	LogInterval  = 8
+	ParallelEnvs = 8
+	BatchSize    = 512
+	LogInterval  = 16
 
 	TimePerSubstep  = time.Second / 30
 	SubstepsPerStep = 3
@@ -72,7 +72,7 @@ func main() {
 			// Speed things up a bit.
 			Iters: 10,
 			Reduce: (&anyrl.FracReducer{
-				Frac:          0.1,
+				Frac:          0.05,
 				MakeInputTape: roller.MakeInputTape,
 			}).Reduce,
 
@@ -187,7 +187,7 @@ func loadOrCreateNetwork(creator anyvec.Creator) anyrnn.Stack {
 	} else {
 		log.Println("Created new network.")
 		markup := `
-			Input(w=160, h=214, d=2)
+			Input(w=80, h=107, d=2)
 
 			Linear(scale=0.01)
 

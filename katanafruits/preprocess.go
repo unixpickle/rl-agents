@@ -15,7 +15,7 @@ const (
 
 	MaxTimestep = 60 * 2 * 5
 
-	PreprocessedSize = (FrameWidth / 2) * (FrameHeight/2 + 1)
+	PreprocessedSize = (FrameWidth / 4) * (FrameHeight/4 + 1)
 )
 
 type PreprocessEnv struct {
@@ -132,8 +132,8 @@ func (p *PreprocessEnv) Step(action anyvec.Vector) (observation anyvec.Vector,
 
 func (p *PreprocessEnv) simplifyImage(in []uint8) anyvec.Vector {
 	data := make([]float64, 0, PreprocessedSize)
-	for y := 0; y < FrameHeight; y += 2 {
-		for x := 0; x < FrameWidth; x += 2 {
+	for y := 0; y < FrameHeight; y += 4 {
+		for x := 0; x < FrameWidth; x += 4 {
 			sourceIdx := (y*FrameWidth + x) * 3
 			var value float64
 			for d := 0; d < 3; d++ {
