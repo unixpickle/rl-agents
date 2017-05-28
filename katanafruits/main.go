@@ -82,6 +82,9 @@ func main() {
 			},
 			ActionJudger: &anypg.QJudger{Discount: 0.9},
 		},
+		LogLineSearch: func(kl, improvement anyvec.Numeric) {
+			log.Printf("line search: kl=%f improvement=%f", kl, improvement)
+		},
 	}
 
 	// Train on a background goroutine so that we can
