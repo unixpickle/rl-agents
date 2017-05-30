@@ -199,7 +199,7 @@ func loadOrCreateNetwork(creator anyvec.Creator) anyrnn.Stack {
 			anyrnn.NewMarkov(creator, 1, PreprocessedSize, true),
 			&anyrnn.LayerBlock{Layer: net},
 			&anyrnn.LayerBlock{
-				Layer: biasLastLayer(anynet.NewFCZero(creator, 256, 2)),
+				Layer: anynet.NewFCZero(creator, 256, 2),
 			},
 		}
 	}
@@ -232,14 +232,6 @@ func projectOutSolidColors(layer anynet.Layer) {
 		negMean.Scale(negMean.Creator().MakeNumeric(-1 / float64(layer.InCount)))
 		anyvec.AddChunks(layer.Weights.Vector, negMean)
 	}
-}
-
-func biasLastLayer(layer *anynet.FC) *anynet.FC {
-	// Bias towards pressing down the mouse (i.e. dragging).
-	c := layer.Biases.Vector.Creator()
-	bias := c.MakeVectorData(c.MakeNumericList([]float64{0, 0, 0, 0, 1}))
-	anyvec.AddRepeated(layer.Biases.Vector, bias)
-	return layer
 }
 
 func must(err error) {
