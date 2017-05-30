@@ -1,8 +1,6 @@
 package main
 
 import (
-	"log"
-
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/muniverse"
@@ -77,9 +75,6 @@ func (p *PreprocessEnv) Step(action anyvec.Vector) (observation anyvec.Vector,
 	reward, done, err = p.Env.Step(TimePerStep, events...)
 	if err != nil {
 		return
-	}
-	if reward != 0 {
-		log.Println("rew", reward)
 	}
 	rawObs, err := p.Env.Observe()
 	if err != nil {
