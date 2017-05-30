@@ -146,7 +146,11 @@ func (p *PreprocessEnv) simplifyImage(in []uint8) anyvec.Vector {
 }
 
 func clipMouse(pos, size float64) int {
-	pos = (pos + 1) / 2
+	if size == FrameHeight {
+		pos = (pos + 4) / 8
+	} else {
+		pos = (pos + 1) / 2
+	}
 	pos = math.Max(0, math.Min(1, pos))
 	return int(essentials.Round(pos * size))
 }
