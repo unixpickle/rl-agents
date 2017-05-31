@@ -22,7 +22,8 @@ type PreprocessEnv struct {
 	Env     muniverse.Env
 	Creator anyvec.Creator
 
-	Timestep int
+	Timestep  int
+	LastFrame anyvec.Vector
 
 	// Number of timesteps for which mouse has been pressed.
 	PressedTimesteps int
@@ -43,7 +44,8 @@ func (p *PreprocessEnv) Reset() (observation anyvec.Vector, err error) {
 	if err != nil {
 		return
 	}
-	observation = p.simplifyImage(buffer)
+	p.LastFrame = p.simplifyImage(buffer)
+	observation = joinFrames(p.LastFrame, p.LastFrame)
 	p.Timestep = 0
 	return
 }
@@ -117,7 +119,9 @@ func (p *PreprocessEnv) Step(action anyvec.Vector) (observation anyvec.Vector,
 	if err != nil {
 		return
 	}
-	observation = p.simplifyImage(buffer)
+	newFrame := p.simplifyImage(buffer)
+	observation = joinFrames(newFrame, p.LastFrame)
+	p.LastFrame = newFrame
 
 	p.Timestep++
 	if p.Timestep > MaxTimestep {
@@ -139,6 +143,13 @@ func (p *PreprocessEnv) simplifyImage(in []uint8) anyvec.Vector {
 		}
 	}
 	return p.Creator.MakeVectorData(p.Creator.MakeNumericList(data))
+}
+
+func joinFrames(f1, f2 anyvec.Vector) anyvec.Vector {
+	joined := f1.Creator().Concat(f1, f2)
+	transpose := joined.Creator().MakeVector(joined.Len())
+	anyvec.Transpose(joined, transpose, 2)
+	return transpose
 }
 
 func clipMouse(pos, size float64) int {

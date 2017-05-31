@@ -1,37 +1,30 @@
 package main
 
 import (
-	"compress/flate"
 	"log"
-	"math"
-	"sync"
 	"time"
 
-	"github.com/unixpickle/anydiff/anyseq"
 	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anynet/anyconv"
 	"github.com/unixpickle/anynet/anyrnn"
+	"github.com/unixpickle/anynet/anysgd"
 	"github.com/unixpickle/anyrl"
+	"github.com/unixpickle/anyrl/anya3c"
 	"github.com/unixpickle/anyrl/anypg"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvec32"
-	"github.com/unixpickle/lazyseq"
-	"github.com/unixpickle/lazyseq/lazyrnn"
 	"github.com/unixpickle/muniverse"
-	"github.com/unixpickle/rip"
 	"github.com/unixpickle/serializer"
 )
 
 const (
 	ParallelEnvs = 8
-	BatchSize    = 512
-	LogInterval  = 16
-
-	TimePerStep = time.Second / 5
+	TimePerStep  = time.Second / 5
+	SaveInterval = time.Minute * 5
 )
 
 const (
-	NetworkSaveFile = "trained_policy"
+	SaveFile = "trained_agent"
 )
 
 func main() {
@@ -39,150 +32,81 @@ func main() {
 	creator := anyvec32.CurrentCreator()
 
 	// Create a neural network policy.
-	policy := loadOrCreateNetwork(creator)
-	actionSpace := &anyrl.Tuple{}
-	actionSpace.Spaces = append(actionSpace.Spaces, anyrl.Gaussian{},
-		&anyrl.Bernoulli{})
-	actionSpace.ParamSizes = append(actionSpace.ParamSizes, 4, 1)
-	actionSpace.SampleSizes = append(actionSpace.SampleSizes, 2, 1)
-
-	// Setup an RNNRoller for producing rollouts.
-	roller := &anyrl.RNNRoller{
-		Block:       policy,
-		ActionSpace: actionSpace,
-
-		// Compress the input frames as we store them.
-		// If we used a ReferenceTape for the input, the
-		// program would use way too much memory.
-		MakeInputTape: func() (lazyseq.Tape, chan<- *anyseq.Batch) {
-			return lazyseq.CompressedUint8Tape(flate.DefaultCompression)
-		},
+	agent := loadOrCreateAgent(creator)
+	agent.ActionSpace = &anyrl.Tuple{
+		Spaces:      []interface{}{anyrl.Gaussian{}, &anyrl.Bernoulli{}},
+		ParamSizes:  []int{4, 1},
+		SampleSizes: []int{2, 1},
 	}
 
-	// Setup Trust Region Policy Optimization for training.
-	trpo := &anypg.TRPO{
-		NaturalPG: anypg.NaturalPG{
-			Policy:      policy,
-			Params:      policy.Parameters(),
-			ActionSpace: actionSpace,
-
-			// Speed things up a bit.
-			Iters: 10,
-			Reduce: (&anyrl.FracReducer{
-				Frac:          0.05,
-				MakeInputTape: roller.MakeInputTape,
-			}).Reduce,
-
-			ApplyPolicy: func(seq lazyseq.Rereader, b anyrnn.Block) lazyseq.Rereader {
-				out := lazyrnn.FixedHSM(30, true, seq, b)
-				return lazyseq.Lazify(lazyseq.Unlazify(out))
-			},
-			ActionJudger: &anypg.QJudger{Discount: 0.9},
-		},
-		LogLineSearch: func(kl, improvement anyvec.Numeric) {
-			log.Printf("line search: kl=%f improvement=%f", kl, improvement)
-		},
+	// Create multiple environment instances.
+	log.Println("Creating environments...")
+	spec := muniverse.SpecForName("BubblesShooter-v0")
+	if spec == nil {
+		panic("environment not found")
 	}
-
-	// Train on a background goroutine so that we can
-	// listen for Ctrl+C on the main goroutine.
-	var trainLock sync.Mutex
-	go func() {
-		for batchIdx := 0; true; batchIdx++ {
-			log.Println("Gathering batch of experience...")
-
-			// Join the rollouts into one set.
-			rollouts := gatherRollouts(roller)
-			r := anyrl.PackRolloutSets(rollouts)
-
-			// Print the stats for the batch.
-			log.Printf("batch %d: mean=%f stddev=%f", batchIdx,
-				r.Rewards.Mean(), math.Sqrt(r.Rewards.Variance()))
-
-			// Train on the rollouts.
-			log.Println("Training on batch...")
-			grad := trpo.Run(r)
-			grad.AddToVars()
-			trainLock.Lock()
-			must(serializer.SaveAny(NetworkSaveFile, policy))
-			trainLock.Unlock()
-		}
-	}()
-
-	log.Println("Running. Press Ctrl+C to stop.")
-	<-rip.NewRIP().Chan()
-
-	// Avoid the race condition where we save during
-	// exit.
-	trainLock.Lock()
-}
-
-func gatherRollouts(roller *anyrl.RNNRoller) []*anyrl.RolloutSet {
-	resChan := make(chan *anyrl.RolloutSet, BatchSize)
-
-	requests := make(chan struct{}, BatchSize)
-	for i := 0; i < BatchSize; i++ {
-		requests <- struct{}{}
-	}
-	close(requests)
-
-	var wg sync.WaitGroup
+	var envs []anyrl.Env
 	for i := 0; i < ParallelEnvs; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			spec := muniverse.SpecForName("BubblesShooter-v0")
-			if spec == nil {
-				panic("environment not found")
-			}
-			env, err := muniverse.NewEnv(spec)
+		env, err := muniverse.NewEnv(spec)
+		// Used to debug on my end.
+		//env, err := muniverse.NewEnvChrome("localhost:9222", "localhost:8080", spec)
+		must(err)
+		defer env.Close()
+		envs = append(envs, &PreprocessEnv{
+			Env:     env,
+			Creator: agent.AllParameters()[0].Vector.Creator(),
+		})
+	}
 
-			// Used to debug on my end.
-			//env, err := muniverse.NewEnvChrome("localhost:9222", "localhost:8080", spec)
+	paramServer := anya3c.RMSPropParamServer(agent, agent.AllParameters(),
+		1e-4, anysgd.RMSProp{DecayRate: 0.99})
 
-			must(err)
-			defer env.Close()
-
-			preproc := &PreprocessEnv{
-				Env:     env,
-				Creator: anynet.AllParameters(roller.Block)[0].Vector.Creator(),
-			}
-			for _ = range requests {
-				rollout, err := roller.Rollout(preproc)
-				must(err)
-				resChan <- rollout
-			}
-		}()
+	a3c := &anya3c.A3C{
+		ParamServer: paramServer,
+		Logger: &anya3c.AvgLogger{
+			Creator: creator,
+			Logger: &anya3c.StandardLogger{
+				Episode:    true,
+				Update:     true,
+				Regularize: true,
+			},
+			// Only log updates and entropy periodically.
+			Update:     60,
+			Regularize: 120,
+		},
+		Discount: 0.9,
+		MaxSteps: 5,
+		Regularizer: &anypg.EntropyReg{
+			Entropyer: agent.ActionSpace.(anyrl.Entropyer),
+			Coeff:     0.003,
+		},
 	}
 
 	go func() {
-		wg.Wait()
-		close(resChan)
+		for {
+			agent, err := paramServer.LocalCopy()
+			must(err)
+			must(serializer.SaveAny(SaveFile, agent.Base, agent.Actor,
+				agent.Critic))
+			time.Sleep(SaveInterval)
+		}
 	}()
 
-	var res []*anyrl.RolloutSet
-	var batchRewardSum float64
-	var numBatchReward int
-	for item := range resChan {
-		res = append(res, item)
-		numBatchReward++
-		batchRewardSum += item.Rewards.Mean()
-		if numBatchReward == LogInterval || len(res) == BatchSize {
-			log.Printf("sub_mean=%f", batchRewardSum/float64(numBatchReward))
-			numBatchReward = 0
-			batchRewardSum = 0
-		}
-	}
-	return res
+	log.Println("Running A3C...")
+	a3c.Run(envs, nil)
 }
 
-func loadOrCreateNetwork(creator anyvec.Creator) anyrnn.Stack {
-	var res anyrnn.Stack
-	if err := serializer.LoadAny(NetworkSaveFile, &res); err == nil {
-		log.Println("Loaded network from file.")
-		return res
+func loadOrCreateAgent(creator anyvec.Creator) *anya3c.Agent {
+	var base, actor, critic anyrnn.Block
+	if err := serializer.LoadAny(SaveFile, &base, &actor, &critic); err == nil {
+		log.Println("Loaded agent from file.")
+		return &anya3c.Agent{
+			Base:   base,
+			Actor:  actor,
+			Critic: critic,
+		}
 	} else {
-		log.Println("Created new network.")
+		log.Println("Creating new agent.")
 		markup := `
 			Input(w=131, h=87, d=2)
 
@@ -199,11 +123,13 @@ func loadOrCreateNetwork(creator anyvec.Creator) anyrnn.Stack {
 		must(err)
 		net := convNet.(anynet.Net)
 		net = setupVisionLayers(net)
-		return anyrnn.Stack{
-			anyrnn.NewMarkov(creator, 1, PreprocessedSize, true),
-			&anyrnn.LayerBlock{Layer: net},
-			&anyrnn.LayerBlock{
+		return &anya3c.Agent{
+			Base: &anyrnn.LayerBlock{Layer: net},
+			Actor: &anyrnn.LayerBlock{
 				Layer: anynet.NewFCZero(creator, 256, 5),
+			},
+			Critic: &anyrnn.LayerBlock{
+				Layer: anynet.NewFCZero(creator, 256, 1),
 			},
 		}
 	}
