@@ -36,11 +36,12 @@ func main() {
 
 	// Create a neural network policy.
 	agent := loadOrCreateAgent(creator)
-	agent.ActionSpace = &anyrl.Tuple{
-		Spaces:      []interface{}{anyrl.Gaussian{}, &anyrl.Bernoulli{}},
-		ParamSizes:  []int{4, 1},
-		SampleSizes: []int{2, 1},
-	}
+	// agent.ActionSpace = &anyrl.Tuple{
+	// 	Spaces:      []interface{}{anyrl.Gaussian{}, &anyrl.Bernoulli{}},
+	// 	ParamSizes:  []int{4, 1},
+	// 	SampleSizes: []int{2, 1},
+	// }
+	agent.ActionSpace = anyrl.Softmax{}
 
 	// Create multiple environment instances.
 	log.Println("Creating environments...")
