@@ -1,8 +1,6 @@
 package main
 
 import (
-	"math"
-
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/muniverse"
@@ -24,11 +22,6 @@ type PreprocessEnv struct {
 
 	Timestep  int
 	LastFrame anyvec.Vector
-
-	// Number of timesteps for which mouse has been pressed.
-	PressedTimesteps int
-	LastX            int
-	LastY            int
 }
 
 func (p *PreprocessEnv) Reset() (observation anyvec.Vector, err error) {
@@ -52,59 +45,23 @@ func (p *PreprocessEnv) Reset() (observation anyvec.Vector, err error) {
 
 func (p *PreprocessEnv) Step(action anyvec.Vector) (observation anyvec.Vector,
 	reward float64, done bool, err error) {
-	floatData := action.Data().([]float32)
-	x := clipMouse(float64(floatData[0]), FrameWidth)
-	y := clipMouse(float64(floatData[1]), FrameHeight)
-	clicked := floatData[2] > 0.5
+	idx := anyvec.MaxIndex(action)
+	row := idx / ClickGridCols
+	col := idx % ClickGridCols
+
+	x := (float64(col) / ClickGridCols) * FrameWidth
+	y := (float64(row) / ClickGridRows) * FrameHeight
 
 	var events []interface{}
-
-	if p.PressedTimesteps == 0 && clicked {
+	for _, t := range []chrome.MouseEventType{chrome.MousePressed, chrome.MouseReleased} {
 		events = append(events, &chrome.MouseEvent{
-			Type:       chrome.MousePressed,
-			X:          x,
-			Y:          y,
+			Type:       t,
+			X:          int(essentials.Round(x)),
+			Y:          int(essentials.Round(y)),
 			Button:     chrome.LeftButton,
 			ClickCount: 1,
 		})
-	} else if p.PressedTimesteps == 1 && !clicked {
-		events = append(events, &chrome.MouseEvent{
-			Type:       chrome.MouseReleased,
-			X:          p.LastX,
-			Y:          p.LastY,
-			Button:     chrome.LeftButton,
-			ClickCount: 1,
-		}, &chrome.MouseEvent{
-			Type: chrome.MouseMoved,
-			X:    x,
-			Y:    y,
-		})
-	} else if p.PressedTimesteps > 1 && !clicked {
-		events = append(events, &chrome.MouseEvent{
-			Type:   chrome.MouseReleased,
-			X:      x,
-			Y:      y,
-			Button: chrome.LeftButton,
-		})
-	} else {
-		evt := &chrome.MouseEvent{
-			Type: chrome.MouseMoved,
-			X:    x,
-			Y:    y,
-		}
-		if clicked {
-			evt.Button = chrome.LeftButton
-		}
-		events = append(events, evt)
 	}
-
-	if clicked {
-		p.PressedTimesteps++
-	} else {
-		p.PressedTimesteps = 0
-	}
-
-	p.LastX, p.LastY = x, y
 
 	reward, done, err = p.Env.Step(TimePerStep, events...)
 	if err != nil {
@@ -150,14 +107,4 @@ func joinFrames(f1, f2 anyvec.Vector) anyvec.Vector {
 	transpose := joined.Creator().MakeVector(joined.Len())
 	anyvec.Transpose(joined, transpose, 2)
 	return transpose
-}
-
-func clipMouse(pos, size float64) int {
-	if size == FrameHeight {
-		pos = (pos + 1) / 2
-	} else {
-		pos = (pos + 1) / 2
-	}
-	pos = math.Max(0, math.Min(1, pos))
-	return int(essentials.Round(pos * size))
 }

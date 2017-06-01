@@ -21,6 +21,9 @@ const (
 	ParallelEnvs = 8
 	TimePerStep  = time.Second / 5
 	SaveInterval = time.Minute * 5
+
+	ClickGridCols = 20
+	ClickGridRows = 3
 )
 
 const (
@@ -33,11 +36,7 @@ func main() {
 
 	// Create a neural network policy.
 	agent := loadOrCreateAgent(creator)
-	agent.ActionSpace = &anyrl.Tuple{
-		Spaces:      []interface{}{anyrl.Gaussian{}, &anyrl.Bernoulli{}},
-		ParamSizes:  []int{4, 1},
-		SampleSizes: []int{2, 1},
-	}
+	agent.ActionSpace = anyrl.Softmax{}
 
 	// Create multiple environment instances.
 	log.Println("Creating environments...")
@@ -78,7 +77,7 @@ func main() {
 		MaxSteps: 5,
 		Regularizer: &anypg.EntropyReg{
 			Entropyer: agent.ActionSpace.(anyrl.Entropyer),
-			Coeff:     0.003,
+			Coeff:     0.01,
 		},
 	}
 
@@ -126,7 +125,7 @@ func loadOrCreateAgent(creator anyvec.Creator) *anya3c.Agent {
 		return &anya3c.Agent{
 			Base: &anyrnn.LayerBlock{Layer: net},
 			Actor: &anyrnn.LayerBlock{
-				Layer: anynet.NewFCZero(creator, 256, 5),
+				Layer: anynet.NewFCZero(creator, 256, ClickGridCols*ClickGridRows),
 			},
 			Critic: &anyrnn.LayerBlock{
 				Layer: anynet.NewFCZero(creator, 256, 1),
