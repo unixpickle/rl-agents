@@ -21,6 +21,9 @@ const (
 	ParallelEnvs = 8
 	TimePerStep  = time.Second / 5
 	SaveInterval = time.Minute * 5
+
+	ClickGridCols = 20
+	ClickGridRows = 3
 )
 
 const (
@@ -126,7 +129,8 @@ func loadOrCreateAgent(creator anyvec.Creator) *anya3c.Agent {
 		return &anya3c.Agent{
 			Base: &anyrnn.LayerBlock{Layer: net},
 			Actor: &anyrnn.LayerBlock{
-				Layer: anynet.NewFCZero(creator, 256, 5),
+				//Layer: anynet.NewFCZero(creator, 256, 5),
+				Layer: anynet.NewFCZero(creator, 256, ClickGridCols*ClickGridRows),
 			},
 			Critic: &anyrnn.LayerBlock{
 				Layer: anynet.NewFCZero(creator, 256, 1),
