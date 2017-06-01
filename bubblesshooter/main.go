@@ -108,7 +108,7 @@ func loadOrCreateAgent(creator anyvec.Creator) *anya3c.Agent {
 	} else {
 		log.Println("Creating new agent.")
 		markup := `
-			Input(w=131, h=87, d=2)
+			Input(w=131, h=87, d=6)
 
 			Linear(scale=0.01)
 
