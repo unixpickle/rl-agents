@@ -51,15 +51,20 @@ func (p *PreprocessEnv) Step(action anyvec.Vector) (observation anyvec.Vector,
 	var events []interface{}
 
 	next := []bool{left, right}
-	names := []string{"ArrowLeft", "ArrowRight"}
+	xs := []int{10, FrameWidth - 10}
 	for i, pressed := range next {
 		if !pressed {
 			continue
 		}
-		evt := chrome.KeyEvents[names[i]]
+		evt := chrome.MouseEvent{
+			Type:       chrome.MousePressed,
+			X:          int(xs[i]),
+			Y:          50,
+			Button:     chrome.LeftButton,
+			ClickCount: 1,
+		}
 		evt1 := evt
-		evt.Type = chrome.KeyDown
-		evt1.Type = chrome.KeyUp
+		evt1.Type = chrome.MouseReleased
 		events = append(events, &evt, &evt1)
 	}
 
