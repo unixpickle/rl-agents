@@ -73,7 +73,7 @@ func main() {
 				out := lazyrnn.FixedHSM(30, true, seq, b)
 				return lazyseq.Lazify(lazyseq.Unlazify(out))
 			},
-			ActionJudger: &anypg.QJudger{Discount: 0.7},
+			ActionJudger: &anypg.QJudger{Discount: 0.9},
 		},
 		LogLineSearch: func(kl, improvement anyvec.Numeric) {
 			log.Printf("line search: kl=%f improvement=%f", kl, improvement)
