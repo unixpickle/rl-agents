@@ -88,7 +88,7 @@ func MasterMain(args []string) {
 	for {
 		log.Println("Gathering batch of experience...")
 		var bigBatch []*anyes.Rollout
-		for i := 0; i < batchSize; i++ {
+		for i := 0; i < batchesPerUpdate; i++ {
 			stopCond := &anyes.StopConds{MaxSteps: 600}
 			batch, err := master.Rollouts(stopCond, batchSize/2)
 			must(err)
