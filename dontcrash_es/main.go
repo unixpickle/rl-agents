@@ -50,11 +50,15 @@ func MasterMain(args []string) {
 	var batchesPerUpdate int
 	var batchSize int
 	var listenAddr string
+	var stepSize float64
+	var noiseStddev float64
 	fs := flag.NewFlagSet("master", flag.ExitOnError)
 	fs.StringVar(&saveFile, "file", "trained_policy", "network output file")
 	fs.IntVar(&batchesPerUpdate, "updates", 32, "batches per update")
 	fs.IntVar(&batchSize, "batch", 16, "batch size (per log)")
 	fs.StringVar(&listenAddr, "addr", ":1337", "address for listener")
+	fs.Float64Var(&stepSize, "step", 0.01, "step size")
+	fs.Float64Var(&noiseStddev, "stddev", 0.01, "mutation stddev")
 	fs.Parse(args)
 
 	creator := anyvec32.CurrentCreator()
@@ -68,8 +72,8 @@ func MasterMain(args []string) {
 			Params: anynet.AllParameters(policy),
 		}),
 		Normalize:   true,
-		NoiseStddev: 0.01,
-		StepSize:    0.1,
+		NoiseStddev: noiseStddev,
+		StepSize:    stepSize,
 		SlaveError: func(s anyes.Slave, e error) error {
 			log.Println("slave disconnect:", e)
 			s.(anyes.SlaveProxy).Close()
