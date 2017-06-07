@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"os"
 	"sync"
@@ -45,7 +46,7 @@ func main() {
 }
 
 func MasterMain(args []string) {
-	time.Seed(time.Now().UnixNano())
+	rand.Seed(time.Now().UnixNano())
 
 	var saveFile string
 	var batchesPerUpdate int
