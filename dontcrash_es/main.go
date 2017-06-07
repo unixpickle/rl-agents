@@ -12,8 +12,6 @@ import (
 	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anynet/anyconv"
 	"github.com/unixpickle/anynet/anyrnn"
-	"github.com/unixpickle/anynet/anysgd"
-	"github.com/unixpickle/anyrl"
 	"github.com/unixpickle/anyrl/anyes"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvec32"
@@ -58,7 +56,7 @@ func MasterMain(args []string) {
 	fs.IntVar(&batchesPerUpdate, "updates", 32, "batches per update")
 	fs.IntVar(&batchSize, "batch", 16, "batch size (per log)")
 	fs.StringVar(&listenAddr, "addr", ":1337", "address for listener")
-	fs.Float64Var(&stepSize, "step", 0.001, "step size")
+	fs.Float64Var(&stepSize, "step", 0.03, "step size")
 	fs.Float64Var(&noiseStddev, "stddev", 0.01, "mutation stddev")
 	fs.Parse(args)
 
@@ -71,14 +69,10 @@ func MasterMain(args []string) {
 		Noise: anyes.NewNoise(1337, 1<<15),
 		Params: anyes.MakeSafe(&anyes.AnynetParams{
 			Params: anynet.AllParameters(policy),
-			Transformer: &anysgd.Adam{
-				Vars: anynet.AllParameters(policy),
-			},
-			StepSize: stepSize,
 		}),
 		Normalize:   true,
 		NoiseStddev: noiseStddev,
-		StepSize:    1,
+		StepSize:    stepSize,
 		SlaveError: func(s anyes.Slave, e error) error {
 			log.Println("slave disconnect:", e)
 			s.(anyes.SlaveProxy).Close()
@@ -114,11 +108,9 @@ func MasterMain(args []string) {
 func SlaveMain(args []string) {
 	var masterAddr string
 	var numSlaves int
-	var stepSize float64
 	fs := flag.NewFlagSet("slave", flag.ExitOnError)
 	fs.StringVar(&masterAddr, "addr", "", "address for master")
 	fs.IntVar(&numSlaves, "num", 1, "number of slaves")
-	fs.Float64Var(&stepSize, "step", 0.001, "step size")
 	fs.Parse(args)
 
 	if masterAddr == "" {
@@ -148,17 +140,12 @@ func SlaveMain(args []string) {
 			slave := &anyes.AnynetSlave{
 				Params: &anyes.AnynetParams{
 					Params: anynet.AllParameters(policy),
-					Transformer: &anysgd.Adam{
-						Vars: anynet.AllParameters(policy),
-					},
-					StepSize: stepSize,
 				},
 				Policy: policy,
 				Env: &PreprocessEnv{
 					Env:     env,
 					Creator: creator,
 				},
-				Sampler: &anyrl.Bernoulli{},
 			}
 			conn, err := net.Dial("tcp", masterAddr)
 			if err != nil {

@@ -42,7 +42,7 @@ func (p *PreprocessEnv) Reset() (observation anyvec.Vector, err error) {
 func (p *PreprocessEnv) Step(action anyvec.Vector) (observation anyvec.Vector,
 	reward float64, done bool, err error) {
 	ops := p.Creator.NumOps()
-	thresh := p.Creator.MakeNumeric(0.5)
+	thresh := p.Creator.MakeNumeric(0)
 	click := ops.Greater(anyvec.Sum(action.Slice(0, 1)), thresh)
 
 	var events []interface{}
