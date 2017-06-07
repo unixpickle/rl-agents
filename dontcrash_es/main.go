@@ -45,6 +45,8 @@ func main() {
 }
 
 func MasterMain(args []string) {
+	time.Seed(time.Now().UnixNano())
+
 	var saveFile string
 	var batchesPerUpdate int
 	var batchSize int
