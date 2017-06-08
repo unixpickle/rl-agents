@@ -121,6 +121,7 @@ func SlaveMain(args []string) {
 	}
 
 	var wg sync.WaitGroup
+	group := &anyes.NoiseGroup{}
 	for i := 0; i < numSlaves; i++ {
 		wg.Add(1)
 		go func() {
@@ -149,6 +150,7 @@ func SlaveMain(args []string) {
 					Env:     env,
 					Creator: creator,
 				},
+				NoiseGroup: group,
 			}
 			conn, err := net.Dial("tcp", masterAddr)
 			if err != nil {
