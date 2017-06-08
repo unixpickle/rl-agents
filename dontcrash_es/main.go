@@ -33,6 +33,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Available commands:")
 		fmt.Fprintln(os.Stderr, " master   host a master node")
 		fmt.Fprintln(os.Stderr, " slave    host a slave node")
+		fmt.Fprintln(os.Stderr, " params   analyze parameter magnitudes")
 		os.Exit(1)
 	}
 
@@ -41,6 +42,8 @@ func main() {
 		MasterMain(os.Args[2:])
 	case "slave":
 		SlaveMain(os.Args[2:])
+	case "params":
+		ParamsMain(os.Args[2:])
 	default:
 		essentials.Die("unknown subcommand:", os.Args[1])
 	}
@@ -165,6 +168,39 @@ func SlaveMain(args []string) {
 
 	wg.Wait()
 	log.Println("all slaves disconnected")
+}
+
+func ParamsMain(args []string) {
+	rand.Seed(time.Now().UnixNano())
+
+	var saveFile string
+	var initialStats bool
+	fs := flag.NewFlagSet("params", flag.ExitOnError)
+	fs.StringVar(&saveFile, "file", "trained_policy", "network output file")
+	fs.BoolVar(&initialStats, "initial", false, "dump stats for random network")
+	fs.Parse(args)
+
+	if initialStats {
+		log.Println("Analyzing random policy...")
+		dumpParamStats(createNetwork(anyvec32.CurrentCreator()))
+		return
+	}
+
+	log.Println("Analyzing policy...")
+	var block anyrnn.Stack
+	if err := serializer.LoadAny(saveFile, &block); err != nil {
+		essentials.Die(err)
+	}
+	dumpParamStats(block)
+}
+
+func dumpParamStats(model interface{}) {
+	for i, param := range anynet.AllParameters(model) {
+		sq := param.Vector.Copy()
+		sq.Mul(param.Vector)
+		sq.Scale(sq.Creator().MakeNumeric(1 / float64(sq.Len())))
+		fmt.Println("param", i, "has mean-square", anyvec.Sum(sq))
+	}
 }
 
 func loadOrCreateNetwork(creator anyvec.Creator, path string) anyrnn.Stack {
