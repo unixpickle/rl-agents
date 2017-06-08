@@ -13,6 +13,7 @@ import (
 	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anynet/anyconv"
 	"github.com/unixpickle/anynet/anyrnn"
+	"github.com/unixpickle/anyrl"
 	"github.com/unixpickle/anyrl/anyes"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvec32"
@@ -145,7 +146,8 @@ func SlaveMain(args []string) {
 				Params: &anyes.AnynetParams{
 					Params: anynet.AllParameters(policy),
 				},
-				Policy: policy,
+				Policy:  policy,
+				Sampler: &anyrl.Bernoulli{},
 				Env: &PreprocessEnv{
 					Env:     env,
 					Creator: creator,
