@@ -69,7 +69,7 @@ func MasterMain(args []string) {
 
 	// Setup the main coordinator for Evolution Strategies.
 	master := &anyes.Master{
-		Noise: anyes.NewNoise(1337, 1<<15),
+		Noise: anyes.NewNoise(1337, 1<<23),
 		Params: anyes.MakeSafe(&anyes.AnynetParams{
 			Params: anynet.AllParameters(policy),
 		}),
