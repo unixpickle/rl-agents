@@ -21,6 +21,7 @@ type PreprocessEnv struct {
 	Creator anyvec.Creator
 
 	Timestep int
+	Pressed  map[string]bool
 }
 
 func (p *PreprocessEnv) Reset() (observation anyvec.Vector, err error) {
@@ -38,6 +39,7 @@ func (p *PreprocessEnv) Reset() (observation anyvec.Vector, err error) {
 	}
 	observation = p.simplifyImage(buffer)
 	p.Timestep = 0
+	p.Pressed = map[string]bool{}
 	return
 }
 
@@ -53,14 +55,17 @@ func (p *PreprocessEnv) Step(action anyvec.Vector) (observation anyvec.Vector,
 	next := []bool{left, right}
 	names := []string{"ArrowLeft", "ArrowRight"}
 	for i, pressed := range next {
-		if !pressed {
+		if pressed == p.Pressed[names[i]] {
 			continue
 		}
+		p.Pressed[names[i]] = pressed
 		evt := chrome.KeyEvents[names[i]]
-		evt1 := evt
-		evt.Type = chrome.KeyDown
-		evt1.Type = chrome.KeyUp
-		events = append(events, &evt, &evt1)
+		if !pressed {
+			evt.Type = chrome.KeyUp
+		} else {
+			evt.Type = chrome.KeyDown
+		}
+		events = append(events, &evt)
 	}
 
 	reward, done, err = p.Env.Step(TimePerStep, events...)
