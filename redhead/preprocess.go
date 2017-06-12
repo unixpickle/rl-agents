@@ -11,7 +11,7 @@ const (
 	FrameWidth  = 480
 	FrameHeight = 320
 
-	MaxTimestep = 60 * 2 * 5
+	MaxTimestep = 30 * 10
 
 	PreprocessedSize = (FrameWidth / 4) * (FrameHeight / 4)
 )

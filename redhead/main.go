@@ -24,8 +24,8 @@ import (
 
 const (
 	ParallelEnvs = 8
-	BatchSize    = 512
-	LogInterval  = 16
+	BatchSize    = 2048
+	LogInterval  = 64
 
 	TimePerStep = time.Second / 10
 )
@@ -73,7 +73,7 @@ func main() {
 				out := lazyrnn.FixedHSM(30, true, seq, b)
 				return lazyseq.Lazify(lazyseq.Unlazify(out))
 			},
-			ActionJudger: &anypg.QJudger{Discount: 0.95},
+			ActionJudger: &anypg.QJudger{Discount: 0.98},
 		},
 		LogLineSearch: func(kl, improvement anyvec.Numeric) {
 			log.Printf("line search: kl=%f improvement=%f", kl, improvement)
