@@ -27,7 +27,7 @@ const (
 	BatchSize    = 512
 	LogInterval  = 16
 
-	TimePerStep = time.Second / 5
+	TimePerStep = time.Second / 10
 )
 
 const (
