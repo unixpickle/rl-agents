@@ -12,6 +12,7 @@ import (
 
 	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anynet/anyconv"
+	"github.com/unixpickle/anynet/anymisc"
 	"github.com/unixpickle/anynet/anyrnn"
 	"github.com/unixpickle/anyrl"
 	"github.com/unixpickle/anyrl/anyes"
@@ -232,6 +233,11 @@ func createNetwork(creator anyvec.Creator) anyrnn.Stack {
 	must(err)
 	net := convNet.(anynet.Net)
 	net = setupVisionLayers(net)
+	for i, layer := range net {
+		if layer == anynet.Tanh {
+			net[i] = &anymisc.SELU{}
+		}
+	}
 	return anyrnn.Stack{
 		anyrnn.NewMarkov(creator, 1, PreprocessedSize, true),
 		&anyrnn.LayerBlock{Layer: net},
