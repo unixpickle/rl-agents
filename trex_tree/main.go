@@ -127,8 +127,6 @@ func gatherRollouts(roller *treeagent.Roller) []*anyrl.RolloutSet {
 			// Used to debug on my end.
 			//env, err := muniverse.NewEnvChrome("localhost:9222", "localhost:8080", spec)
 
-			env = muniverse.RecordEnv(env, "/Users/alex/Desktop/trex_tree")
-
 			must(err)
 			defer env.Close()
 
