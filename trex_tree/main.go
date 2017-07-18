@@ -12,6 +12,7 @@ import (
 
 	"github.com/unixpickle/anydiff/anyseq"
 	"github.com/unixpickle/anyrl"
+	"github.com/unixpickle/anyrl/anypg"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvec32"
 	"github.com/unixpickle/lazyseq"
@@ -60,7 +61,7 @@ func main() {
 	trainer := &treeagent.Trainer{
 		NumTrees:    20,
 		NumFeatures: PreprocessedSize,
-		RolloutFrac: 0.2,
+		Judger:      &anypg.QJudger{Discount: 0.98},
 		UseFeatures: PreprocessedSize / 10,
 		BuildTree: func(samples []idtrees.Sample, attrs []idtrees.Attr) *idtrees.Tree {
 			return idtrees.LimitedID3(samples, attrs, 0, 4)
